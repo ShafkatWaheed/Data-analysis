@@ -6,7 +6,8 @@ from sqlalchemy import (create_engine,
                         Integer,
                         Boolean,
                         Table,
-                        ForeignKey)
+                        ForeignKey,
+                        DateTime)
 
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -40,18 +41,18 @@ hashtag_tweet = Table('hashtag_tweet', Base.metadata,
 class Tweet(Base):
     __tablename__ = 'tweets'
     id = Column(Integer, primary_key=True)
-    tid = Column(String(100), nullable=False)
+    tid = Column(String(100), nullable=False, unique=True)
     tweet = Column(String(300), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     coordinates = Column(String(50), nullable=True)
     user = relationship('User', backref='tweets')
-    created_at = Column(String(100), nullable=False)
+    created_at = Column(DateTime, nullable=False)
     favorite_count = Column(Integer)
     in_reply_to_screen_name = Column(String)
-    in_reply_to_status_id = Column(Integer)
-    in_reply_to_user_id = Column(Integer)
+    in_reply_to_status_id = Column(String)
+    in_reply_to_user_id = Column(String)
     lang = Column(String)
-    quoted_status_id = Column(Integer)
+    quoted_status_id = Column(String)
     retweet_count = Column(Integer)
     source = Column(String)
     is_retweet = Column(Boolean)
@@ -65,10 +66,10 @@ class Tweet(Base):
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
-    uid = Column(String(50), nullable=False)
+    uid = Column(String(50), nullable=False, unique=True)
     name = Column(String(100), nullable=False)
     screen_name = Column(String)
-    created_at = Column(String)
+    created_at = Column(DateTime)
     # Nullable
     description = Column(String)
     followers_count = Column(Integer)
@@ -85,7 +86,7 @@ class User(Base):
 class Hashtag(Base):
     __tablename__ = 'hashtags'
     id = Column(Integer, primary_key=True)
-    text = Column(String(200), nullable=False)
+    text = Column(String(200), nullable=False, unique=True)
     tweets = relationship('Tweet',
                           secondary='hashtag_tweet',
                           back_populates='hashtags')
