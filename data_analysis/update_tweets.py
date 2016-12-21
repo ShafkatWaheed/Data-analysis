@@ -1,9 +1,17 @@
 from math import floor
-from tweepy import API
+from tweepy import API, OAuthHandler
 
-# FIXME: lazy!
-from data_analysis.save_tweets import auth
 from data_analysis.database import session, Tweet
+
+consumer_key = 'dGx62GNqi7Yaj1XIcZgOLNjDb'
+consumer_secret = 'ZCE896So7Ba1u96ICwMhulO2QO3oeZ5BeVyfUw1YbIYELzVyJs'
+access_token = '1121993185-hGOTr3J40FlKGwWkiNWdeNVrcD4bqqW38SPiM3s'
+access_token_secret = 'BAo4d2J24xyXRKFrga6A9MwpTW6bMb5EztfvnL5qv2LvJ'
+
+auth = OAuthHandler(consumer_key,
+                    consumer_secret)
+
+auth.set_access_token(access_token, access_token_secret)
 
 
 def update_tweets(api, tweets):
@@ -74,7 +82,7 @@ def _update_sets(api, session, tweet_set, start_num):
         database_tweet.retweet_count = retweet_count
 
         # User feedback
-        print('index: {}'.format(old_tweet.id))
+        print('index: {}'.format(database_tweet.id))
         print('favs: {} \t retweets: {}'.format(fav_count, retweet_count))
 
     # save our changes to the database
