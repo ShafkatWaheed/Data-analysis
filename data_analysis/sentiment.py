@@ -4,6 +4,8 @@ import json
 import time
 
 from os import path
+from threading import Thread
+from queue import Queue
 
 from PyQt5 import QtWidgets, QtCore
 import numpy as np
@@ -18,16 +20,18 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.basemap import Basemap
 
-from tweepy import Stream
-from tweepy.streaming import StreamListener
+from tweepy import Stream, API
 
 from data_analysis.auth import auth
+from data_analysis._strip_listener import StripListener
+from data_analysis._util import get_text_cleaned as _get_text_cleaned
+from data_analysis._util import WorkerThread as _WorkerThread
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 
 class Language(QtCore.QObject):
-    # FIXME
+    # FIXME: bad naming
     analysis_signal = QtCore.pyqtSignal(str, float, int)
     def __init__(self, get_iso):
         super().__init__()
@@ -58,85 +62,87 @@ class Language(QtCore.QObject):
                                       len(value))
 
             self._cache.pop(iso)
-            
-
 
     def process_tweet(self, id_, tweet_string):
         tokens = self.tokenizer.tokenize(tweet_string)
 
-    def get_cache_slot(self):
-        pass
+    def process_geo_tweets(self, tweets, iso):
+        scores = []
+        for tweet in tweets:
+            text = _get_text_cleaned(tweet)
+            polarity = self._analyzer.polarity_scores(text)
+            scores.append(polarity['compound'])
 
-def _get_text_cleaned(tweet):
-    text = tweet['text']
-    
-    slices = []
-    #Strip out the urls.
-    if 'urls' in tweet['entities']:
-        for url in tweet['entities']['urls']:
-            slices += [{'start': url['indices'][0], 'stop': url['indices'][1]}]
-    
-    #Strip out the hashtags.
-    if 'hashtags' in tweet['entities']:
-        for tag in tweet['entities']['hashtags']:
-            slices += [{'start': tag['indices'][0], 'stop': tag['indices'][1]}]
-    
-    #Strip out the user mentions.
-    if 'user_mentions' in tweet['entities']:
-        for men in tweet['entities']['user_mentions']:
-            slices += [{'start': men['indices'][0], 'stop': men['indices'][1]}]
-    
-    #Strip out the media.
-    if 'media' in tweet['entities']:
-        for med in tweet['entities']['media']:
-            slices += [{'start': med['indices'][0], 'stop': med['indices'][1]}]
-    
-    #Strip out the symbols.
-    if 'symbols' in tweet['entities']:
-        for sym in tweet['entities']['symbols']:
-            slices += [{'start': sym['indices'][0], 'stop': sym['indices'][1]}]
-    
-    # Sort the slices from highest start to lowest.
-    slices = sorted(slices, key=lambda x: -x['start'])
-    
-    #No offsets, since we're sorted from highest to lowest.
-    for s in slices:
-        text = text[:s['start']] + text[s['stop']:]
-        
-    return text
+        self.analysis_signal.emit(iso, np.mean(scores), len(scores))
 
 
-class StripListener(StreamListener):
-    def __init__(self, get_iso):
+class Twitter(QtCore.QObject):
+    MAX_API_REQUESTS = 450
+    def __init__(self, get_iso, listener=None, parent=None):
+        """
+        we're going to pass in get_iso directly because it
+        makes more sense to have this as a blocking call.
+        AKA: I want the information NAO.
+        """
+        super().__init__(parent)
+        self.stream = Stream(auth, listener)
+        self.api = API(auth)
+        # can only request so much in a 15 min window
         self._language = Language(get_iso)
-        self.analysis_signal = self._language.analysis_signal
+        self._requests = 0
+        self._requests_time = time.time()
+        # Don't want to instantiate a new thread everytime
+        # So we're going to use a "thread pool"
+        self._task_thread = Queue()
+        self._worker_thread = _WorkerThread(self._task_thread)
+
         self.running = True
+        self.country_list = []
 
-    def on_data(self, data):
-        data = json.loads(data)
-        if 'in_reply_to_status_id' in data:
-            if data['coordinates'] is not None:
-                text = _get_text_cleaned(data)
-                # Don't ask questions
-                coords = data['coordinates']['coordinates']
+    def get_tweets_from_location(self, latitude, longitude, radius, iso):
+        searched_tweets = []
+        last_id = -1
+        max_tweets = 50
+        while len(searched_tweets) < max_tweets:
+            tweets = self.api.search(lang='en',
+                                     result_type='recent',
+                                     geocode=(latitude, longitude, radius))
 
-                self._language.store_tweet(coords, text)
+            searched_tweets.extend(tweets)
 
-        if not self.running:
-            return False
+        self._language.process_geo_tweets(tweets, iso)
+
+    def start_filter(self, **kwargs):
+        defaults = {'locations': [-180,-90,180,90],
+                    'languages': ('en',)}
+
+        defaults.update(kwargs)
+        self.stream.filter(async=True, **kwargs)
+
+    def special_loop(self):
+        while self.running:
+            # FIXME: filter isn't blocking. Duh.
+            self.stream.filter(locations=,
+                               languages=('en',),
+                               async=True)
+
+            # we're going to break here
+            if self.country_list:
+                values = self.country_list.pop()
+                self._task_thread.put((self.get_tweets_from_location,
+                                       values, {}))
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
     main_window = QtWidgets.QMainWindow()
     widget = SentimentMapWidget()
-    get_iso = widget.get_iso3
     main_window.setCentralWidget(widget)
 
+    get_iso = widget.get_iso3
+    # FIXME: needs access to the `Language` instance
     listener = StripListener(get_iso)
     listener.analysis_signal.connect(widget.analysis_slot)
-    stream = Stream(auth, listener)
-    stream.filter(locations=[-180,-90,180,90], languages=('en',), async=True)
 
     main_window.show()
 
@@ -174,7 +180,7 @@ class SentimentMapWidget(QtWidgets.QWidget):
                        lat_ts=20,
                        ax=axis,
                        resolution='c')
- 
+
         dir_filepath = path.dirname(path.abspath(__file__))
         map_.drawmapboundary(color='#d3d3d3')
 
