@@ -1,3 +1,7 @@
+from threading import Thread
+from tweepy.error import RateLimitError
+
+
 def get_text_cleaned(tweet):
     text = tweet['text']
 
@@ -41,10 +45,13 @@ class WorkerThread(Thread):
     """
     A simple thread to be used in a thread pool
     """
-    def __init__(self, task: 'queue.Queue'):
+    def __init__(self,
+                 task: 'queue.Queue',
+                 fallback_call=None):
         super().__init__()
         self.task = task
         self.daemon = True
+        self.fallback_call = fallback_call
         self.start()
 
     def run(self):
@@ -52,9 +59,14 @@ class WorkerThread(Thread):
             func, args, kwargs = self.task.get()
             try:
                 func(*args, **kwargs)
+            except RateLimitError:
+                with self.task.mutex:
+                    self.task.queue.clear()
+                print('Twitter Rate limit reached!')
+                if self.fallback_call:
+                    self.fallback_call()
+
             except Exception as e:
                 print(e)
             finally:
                 self.task.task_done()
-
-
