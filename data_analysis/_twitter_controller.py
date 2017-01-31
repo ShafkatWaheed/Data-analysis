@@ -109,7 +109,7 @@ class SentimentListener(StreamListener):
     def __init__(self,
                  sentiment_controller: SentimentController):
 
-        self._sentiment_controller = sentiment_controller 
+        self._sentiment_controller = sentiment_controller
         self.sentiment_signal = self._sentiment_controller.sentiment_signal
         self.running = True
 

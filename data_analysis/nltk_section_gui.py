@@ -6,27 +6,34 @@ from PyQt5 import QtWidgets, QtCore
 
 import pandas as pd
 
-
 from data_analysis.heat_map_widget import HeatMapWidget
 from data_analysis.sentiment_widget import SentimentMapWidget
 from data_analysis._twitter_controller import TwitterController
 
 
-class TabThread(QtCore.QThread):
-    """
-    Responsible for uploading the map data and keeping track of progress
-    """
-    progress_bar_signal = QtCore.pyqtSignal()
-    def __init__(self, tab_widget, parent=None):
-        super().__init__(parent)
-        self._tab_widget = tab_widget
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    main_window = QtWidgets.QMainWindow()
 
-    def run(self):
-        self.progress_bar_signal.emit()
-        sentiment_widget = self._tab_widget._sentiment_map_widget
-        sentiment_widget._detailed_map_setup()
-        sentiment_widget.update_canvas()
-        self._tab_widget.remove_progress_bar.emit()
+    tab_widget = StreamSwitchTab()
+    country_progress_signal = tab_widget._sentiment_map_widget.country_progress
+    progress_bar, progress_bar_function = _add_progress_bar(main_window,
+                                                            country_progress_signal)
+
+    tab_widget.progress_bar_signal.connect(progress_bar_function)
+    tab_widget.set_progress_bar_function(progress_bar_function)
+
+    progress_bar_closure = remove_progress_bar(main_window, progress_bar)
+    tab_widget.remove_progress_bar.connect(progress_bar_closure)
+
+    main_window.setCentralWidget(tab_widget)
+    main_window.show()
+    try:
+        app.exec_()
+    except KeyboardInterrupt:
+        pass
+
+    tab_widget.twitter_controller.running = False
 
 
 class StreamSwitchTab(QtWidgets.QTabWidget):
@@ -77,30 +84,23 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         elif index == self.sentiment_map:
             self.twitter_controller.start_sentiment_map()
 
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    main_window = QtWidgets.QMainWindow()
 
-    tab_widget = StreamSwitchTab()
-    country_progress_signal = tab_widget._sentiment_map_widget.country_progress
-    progress_bar, progress_bar_function = _add_progress_bar(main_window,
-                                                            country_progress_signal)
 
-    tab_widget.progress_bar_signal.connect(progress_bar_function)
-    tab_widget.set_progress_bar_function(progress_bar_function)
+class TabThread(QtCore.QThread):
+    """
+    Responsible for uploading the map data and keeping track of progress
+    """
+    progress_bar_signal = QtCore.pyqtSignal()
+    def __init__(self, tab_widget, parent=None):
+        super().__init__(parent)
+        self._tab_widget = tab_widget
 
-    progress_bar_closure = remove_progress_bar(main_window, progress_bar)
-    tab_widget.remove_progress_bar.connect(progress_bar_closure)
-
-    main_window.setCentralWidget(tab_widget)
-    main_window.show()
-    try:
-        app.exec_()
-    except KeyboardInterrupt:
-        pass
-
-    tab_widget.twitter_controller.running = False
-
+    def run(self):
+        self.progress_bar_signal.emit()
+        sentiment_widget = self._tab_widget._sentiment_map_widget
+        sentiment_widget._detailed_map_setup()
+        sentiment_widget.update_canvas()
+        self._tab_widget.remove_progress_bar.emit()
 
 
 def _add_progress_bar(qmainwindow, progress_signal):
@@ -121,6 +121,7 @@ def remove_progress_bar(qmainwindow, progress_bar):
         status = qmainwindow.statusBar()
         status.removeWidget(progress_bar)
     return inner
+
 
 if __name__ == '__main__':
     main()
