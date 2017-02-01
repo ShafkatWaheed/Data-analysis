@@ -21,11 +21,12 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 class SentimentController(QtCore.QObject):
     sentiment_signal = QtCore.pyqtSignal(str, float, int)
 
-    def __init__(self, get_iso):
+    def __init__(self, map_, iso_path_list):
         super().__init__()
         self._cache = {}
-        self.get_iso = get_iso
         self._analyzer = SentimentIntensityAnalyzer()
+        self._map_ = map_
+        self._paths = iso_path_list
 
     def store_tweet(self, coordinates, tweet):
         polarity = self._analyzer.polarity_scores(tweet)
@@ -54,6 +55,18 @@ class SentimentController(QtCore.QObject):
                 self._cache.pop(iso)
             except KeyError:
                 pass
+
+    def get_iso3(self, coordinates):
+        points = self._map_(*coordinates)
+        # don't ask questions
+        points = (points,)
+        result = None
+        for iso, path in self._paths:
+            if path.contains_points(points):
+                result = iso
+                break
+
+        return result
 
     def process_geo_tweets(self, tweets, iso):
         scores = []
@@ -84,7 +97,7 @@ class SentimentMapWidget(MapWidget):
     def __init__(self, parent=None):
         # base class contains a lot of the map logic!
         super().__init__(parent)
-        # TODO: Add NOTE
+        # stores the ISO name and the aggregate sentiment logic
         self._sentiment_cache = {}
         # matplotlib wasn't made to do real time analytics, so we'll limit
         # updates to hack around this
@@ -154,7 +167,6 @@ class SentimentMapWidget(MapWidget):
         `average_sentiment` is the average sentiment value, value between (-1, +1)
         `count` is the count of observations that make up the average_sentiment
         """
-        # 
         try:
             # get the old value
             result = self._sentiment_cache[iso]
@@ -171,33 +183,19 @@ class SentimentMapWidget(MapWidget):
         self.add_count_signal.emit(count)
 
         time_ = time.time()
+        # If it's been more than 10 seconds...
         if time_ - self._last_updated > 10:
+            # for each item in the sentiment cache...
             for analysis_iso, values in self._sentiment_cache.items():
+                # get the corresponding color for the sentiment value...
                 color = plt.cm.bwr(values[0])
+                # countries are made up of many patches, and we want to color them all...
                 for cache_iso, patch in self._cache_patches:
+                    # If the countries match...
                     if cache_iso == analysis_iso:
+                        # color the patch
                         patch.set_facecolor(color)
 
             self.update_canvas()
             self._last_updated = time_
 
-    def geo_slot(self, coords, tweets):
-        isos = []
-        for coord in coords:
-            isos.append(self.get_iso3(coord))
-
-        for iso, tweet in zip(isos, tweets):
-            if iso is None:
-                continue
-
-    def get_iso3(self, coordinates):
-        points = self.map_(*coordinates)
-        # don't ask questions
-        points = (points,)
-        result = None
-        for iso, path in self._cache_path:
-            if path.contains_points(points):
-                result = iso
-                break
-
-        return result

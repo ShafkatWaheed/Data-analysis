@@ -30,8 +30,10 @@ class SpecialTokenizer(TweetTokenizer):
         self._stemmer = SnowballStemmer('english')
 
     def tokenize(self, text):
+        # Text preprocessing
         if self.remove_url:
             text = self.handle_urls(text)
+        # Text preprocessing
         if self.transform_handles:
             text = self.fix_handles(text)
 
@@ -47,13 +49,13 @@ class SpecialTokenizer(TweetTokenizer):
     def handle_urls(self, text):
         # https://gist.github.com/uogbuji/705383
         pattern = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
-        return pattern.sub('__URL', text)
+        return pattern.sub('__url', text)
 
     def fix_handles(self, text):
         # https://github.com/nltk/nltk/blob/develop/nltk/tokenize/casual.py#L327
         pattern = re.compile(r"(?<![A-Za-z0-9_!@#\$%&*])@(([A-Za-z0-9_]){20}(?!@))|(?<![A-Za-z0-9_!@#\$%&*])@(([A-Za-z0-9_]){1,19})(?![A-Za-z0-9_]*@)")
 
-        return pattern.sub('__HANDLE', text)
+        return pattern.sub('__handle', text)
 
 
 def make_extract_features_func(all_features):
@@ -95,16 +97,16 @@ def make_classifier():
     twitter_samples = LazyCorpusLoader('twitter_samples',
                                        TwitterCorpusReader,
                                        files,
-                                       word_tokenizer=SpecialTokenizer())
+                                       word_tokenizer=SpecialTokenizer(stem_words=False))
 
     # this returns a list of tokenized tweets, as a list of lists
     tokenized = twitter_samples.tokenized()
 
     # We need to unpack the `tokenized` list of lists 
     # We'll do it using a nested list comprehension
-    features = nltk.FreqDist(i for sub in tokenized for i in sub)
-    features.pprint(100)
-    master_wordlist = tuple(features.keys())
+    frequency_dist = nltk.FreqDist(i for sub in tokenized for i in sub)
+    frequency_dist.pprint(100)
+    master_wordlist = tuple(frequency_dist.keys())
 
     extract_features = make_extract_features_func(master_wordlist)
 
@@ -173,7 +175,7 @@ class SentimentClassifier:
         features = {}
         for word in words:
             key = 'contains({})'.format(word)
-            value = word in self.master_wordlist
+            value = word in self._master_wordlist
             features[key] = value
         return features
 

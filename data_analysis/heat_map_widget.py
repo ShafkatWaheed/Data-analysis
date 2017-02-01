@@ -1,8 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
 import numpy as np
 
-from tweepy.streaming import StreamListener, Stream
-
 from data_analysis.map_widget import MapWidget, plt
 
 
@@ -25,6 +23,10 @@ class HeatMapWidget(MapWidget):
         self.map_.drawcoastlines(color='grey')
 
     def geography_slot(self, coords, tweets):
+        """
+        Coords is a 20 member list of (lat, long)
+        NOTE: `tweets` currently unused.
+        """
         for index, (x, y) in enumerate(coords):
             coords[index] = self.map_(x, y)
 

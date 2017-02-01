@@ -15,14 +15,14 @@ from data_analysis._util import get_text_cleaned as _get_text_cleaned
 
 
 class TwitterController(QtCore.QObject):
-    def __init__(self, get_iso, parent=None):
-        """
-        we're going to pass in get_iso directly because it
-        makes more sense to have it as a blocking call rather than passing it
-        around
-        """
+    def __init__(self, sentiment_map_widget, parent=None):
         super().__init__(parent)
-        self._sentiment_controller = SentimentController(get_iso)
+        # Sentiment Controller needs a few references
+        map_ = sentiment_map_widget.map_
+        iso_paths_list = sentiment_map_widget._cache_path
+
+        self._sentiment_controller = SentimentController(map_, iso_paths_list)
+
         self._sentiment_listener = SentimentListener(self._sentiment_controller)
         self._geography_listener = GeographyListener()
         # Duck type our two signals on this class for easy access
@@ -101,6 +101,36 @@ class TwitterController(QtCore.QObject):
         kwargs = dict(**self._base_filter_kwargs, languages=('en',))
         self.stream.filter(**kwargs)
 
+
+class GeographyConvienceWrapper:
+    """
+    Convience class for recording/demonstration Geography purposes.
+    """
+    def __init__(self):
+        self._geography_listener = GeographyListener()
+        # Duck type our signal onto this class for easy access
+        self.geography_signal = self._geography_listener.geography_signal
+        self.stream = Stream(auth, self._geography_listener)
+
+    def start(self):
+        self.stream.filter(locations=[-180, -90, 180, 90],
+                           async=True)
+
+class SentimentConvienceWrapper:
+    """
+    Convience class for recording/demonstration Sentiment purposes
+    """
+    def __init__(self, sentiment_controller):
+        self._geograph_listener = GeographyListener()
+        self._sentiment_controller = sentiment_controller
+        self._geograph_listener.geography_signal.connect(self._sentiment_controller.analyze_tweets)
+        self.tweet_geo_signal = self._geograph_listener.geography_signal
+        self.stream = Stream(auth, self._geography_listener)
+
+    def start(self):
+        self.stream.filter(locations=[-180, -90, 180, 90],
+                           async=True,
+                           languages=('en',))
 
 class SentimentListener(StreamListener):
     """

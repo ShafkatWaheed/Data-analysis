@@ -48,11 +48,8 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         self.heat_map = self.addTab(self._heat_map_widget, 'Heat Map')
         self.sentiment_map = self.addTab(self._sentiment_map_widget, 'Sentiment Map')
 
-        # NOTE: Hack. Pass the `get_iso` method into the twitter controller so that
-        # it can determine which countries a tweet falls in
-        get_iso = self._sentiment_map_widget.get_iso3
         # Create twitter controller
-        self.twitter_controller = TwitterController(get_iso)
+        self.twitter_controller = TwitterController(self._sentiment_map_widget)
 
         geography_slot = self._heat_map_widget.geography_slot
         self.twitter_controller.geography_signal.connect(geography_slot)
