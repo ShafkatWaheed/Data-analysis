@@ -120,11 +120,9 @@ class SentimentConvienceWrapper:
     """
     Convience class for recording/demonstration Sentiment purposes
     """
-    def __init__(self, sentiment_controller):
-        self._geograph_listener = GeographyListener()
-        self._sentiment_controller = sentiment_controller
-        self._geograph_listener.geography_signal.connect(self._sentiment_controller.analyze_tweets)
-        self.tweet_geo_signal = self._geograph_listener.geography_signal
+    def __init__(self):
+        self._geography_listener = GeographyListener()
+        self.geo_tweet_signal = self._geography_listener.geography_signal
         self.stream = Stream(auth, self._geography_listener)
 
     def start(self):
@@ -148,10 +146,10 @@ class SentimentListener(StreamListener):
         if 'in_reply_to_status_id' in data:
             if data['coordinates'] is not None:
                 text = _get_text_cleaned(data)
-                # Don't ask questions
+                # coordinates are nested
                 coords = data['coordinates']['coordinates']
 
-                self._sentiment_controller.store_tweet(coords, text)
+                self._sentiment_controller.analyze_tweet_sentiment(coords, text)
 
         if not self.running:
             return False

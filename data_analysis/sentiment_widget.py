@@ -28,16 +28,20 @@ class SentimentController(QtCore.QObject):
         self._map_ = map_
         self._paths = iso_path_list
 
-    def store_tweet(self, coordinates, tweet):
+    def analyze_tweet_sentiment(self, coordinates, tweet):
+        """
+        analyszes the tweet's sentiments. Stores the values and
+        only emits the sentiment signal if there are over 10 values
+        or if the country isn't in the _POP list of most populus
+        countries.
+        """
         polarity = self._analyzer.polarity_scores(tweet)
         score = polarity['compound']
-        if score != 0:
-            iso = self.get_iso(coordinates)
-            # print(iso, score)
-            if iso:
-                self._store_score(iso, score)
+        iso = self.get_iso3(coordinates)
+        if iso:
+            self._store_analysis_score(iso, score)
 
-    def _store_score(self, iso, score):
+    def _store_analysis_score(self, iso, score):
         try:
             value = self._cache[iso]
             value.append(score)
@@ -49,7 +53,7 @@ class SentimentController(QtCore.QObject):
             self.sentiment_signal.emit(iso,
                                        np.mean(value),
                                        len(value))
-           
+
             # NOTE: Fixes race condition
             try:
                 self._cache.pop(iso)
@@ -69,6 +73,10 @@ class SentimentController(QtCore.QObject):
         return result
 
     def process_geo_tweets(self, tweets, iso):
+        """
+        method used to process the sentiment for a bunch of tweets from a
+        single country. Used in the batch processing from the search api.
+        """
         scores = []
         for tweet in tweets:
             text = _get_text_cleaned(tweet._json)
@@ -94,7 +102,7 @@ class SentimentMapWidget(MapWidget):
     # NOTE: `add_count_signal` used to keep track of tweets analyzed
     add_count_signal = QtCore.pyqtSignal(int)
 
-    def __init__(self, parent=None):
+    def __init__(self, draw_map=True, parent=None):
         # base class contains a lot of the map logic!
         super().__init__(parent)
         # stores the ISO name and the aggregate sentiment logic
@@ -104,6 +112,13 @@ class SentimentMapWidget(MapWidget):
         self._last_updated = time.time()
         # connect the count to the counter
         self.add_count_signal.connect(self.counter_widget.add_to_count)
+        # store the (iso_name, path) for determining which country tweet is in
+        # using the `contains_points` method
+        self._cache_path = []
+        # store the (iso_name, patch) for coloring using `set_facecolor` method
+        self._cache_patches = []
+        if draw_map:
+            self._detailed_map_setup()
 
     def _detailed_map_setup(self):
         """
@@ -121,12 +136,6 @@ class SentimentMapWidget(MapWidget):
         self.map_.drawmapboundary(color='#d3d3d3')
         # read in the shapefile
         self.map_.readshapefile(shapefile, 'countries', color='black', linewidth=.2)
-
-        # store the (iso_name, path) for determining which country tweet is in
-        # using the `contains_points` method
-        self._cache_path = []
-        # store the (iso_name, patch) for coloring using `set_facecolor` method
-        self._cache_patches = []
 
         # iterate over the country info and shape info. Use `index` to record
         # loading progress
@@ -199,3 +208,14 @@ class SentimentMapWidget(MapWidget):
             self.update_canvas()
             self._last_updated = time_
 
+    def get_country_code(self, coordinates):
+        points = self.map_(*coordinates)
+        # don't ask questions
+        points = (points,)
+        result = None
+        for iso, path in self._cache_path:
+            if path.contains_points(points):
+                result = iso
+                break
+
+        return result

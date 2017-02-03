@@ -43,7 +43,7 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         super().__init__(parent)
         # Create our two widgets
         self._heat_map_widget = HeatMapWidget()
-        self._sentiment_map_widget = SentimentMapWidget()
+        self._sentiment_map_widget = SentimentMapWidget(False)
         # Add the two widgets and store the index for later comparison
         self.heat_map = self.addTab(self._heat_map_widget, 'Heat Map')
         self.sentiment_map = self.addTab(self._sentiment_map_widget, 'Sentiment Map')
