@@ -1,7 +1,7 @@
 import sys
 from PyQt5 import QtWidgets
 
-from data_analysis.scratch import GraphWidget
+from data_analysis.realtime_graph_widget import GraphWidget
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
