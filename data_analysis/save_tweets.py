@@ -10,6 +10,9 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from data_analysis.database import session, Tweet, Hashtag, User
 
+from data_analysis._util import WorkerThread
+from queue import Queue
+
 
 consumer_key = 'dGx62GNqi7Yaj1XIcZgOLNjDb'
 consumer_secret = 'ZCE896So7Ba1u96ICwMhulO2QO3oeZ5BeVyfUw1YbIYELzVyJs'
@@ -26,8 +29,7 @@ def save_tweets():
     directory = _get_dir_absolute_path()
     filepath = path.join(directory, 'tweets.json')
 
-    listener = DatabaseListener(number_tweets_to_save=10000,
-                                filepath=filepath)
+    listener = DatabaseListener(number_tweets_to_save=100000)
     stream = Stream(auth, listener)
     languages = ('en',)
     try:
@@ -37,33 +39,29 @@ def save_tweets():
 
 
 class DatabaseListener(StreamListener):
-    def __init__(self, number_tweets_to_save, filepath=None):
+    def __init__(self, number_tweets_to_save):
         self._final_count = number_tweets_to_save
         self._current_count = 0
-        if filepath is None:
-            filepath = 'tweets.txt'
-        self.file = open(filepath, 'w')
-
-    # NOTE: Slightly dangerous due to circular references
-    def __del__(self):
-        self.file.close()
+        self._queue = Queue()
+        self._thread = WorkerThread(self._queue)
 
     def on_data(self, raw_data):
         data = json.loads(raw_data)
-        # json.dump(raw_data, self.file)
-        # self.file.write('\n')
         if 'in_reply_to_status_id' in data:
             return self.on_status(data)
 
     def on_status(self, data):
         # NOTE: This method is definied in this file
-        result = save_to_database(data)
-        
+        self._current_count += 1
+        print(self._current_count)
+        self._queue.put((save_to_database, (data,), {}))
+        # result = save_to_database(data)
+        """
         if result:
-            self._current_count += 1
             print('Status count: {}'.format(self._current_count))
             if self._current_count >= self._final_count:
                 return False
+        """
 
 
 _TIME_FORMAT ='%a %b %d  %H:%M:%S +0000 %Y' 

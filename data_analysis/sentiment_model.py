@@ -44,7 +44,7 @@ class SentimentClassifier:
         else:
             return -1
 
-
+ 
 class CustomTokenizer(TweetTokenizer):
     def __init__(self,
                  preserve_case=False,
@@ -75,7 +75,7 @@ class CustomTokenizer(TweetTokenizer):
         return self.url_re.sub('__url', text)
 
     def stem(self, words):
-        return [self._stemmer.stem(word) for word in words]
+        return [self._stemmer.stem(word) for word in words if not word in string.punctuation]
 
     def tokenize(self, text):
         # Text preprocessing
