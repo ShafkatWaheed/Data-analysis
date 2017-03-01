@@ -298,20 +298,19 @@ class _TopicListenerHelper(QtCore.QObject):
     def _helper(self):
         token_list = [t for t in self._listener.lda_model.token_list if t]
         topic_numbers = self._listener.lda_model.train_model(token_list)
-        counter = Counter(topic_numbers)
-        topic_key_words = self._listener.lda_model.get_vocabulary_helper(counter.keys())
+        counter = np.array(Counter(topic_numbers).most_common())
+        keys = counter[:, 0]
+        values = counter[:, 1]
+        topic_key_words = self._listener.lda_model.get_vocabulary_helper(keys)
 
-        print(len(counter.values()), *['\n' + ' '.join((str(k), *v)) for k, v in zip(counter.values(), topic_key_words)])
+        print(len(counter.values()), *['\n' + ' '.join((str(k), *v)) for k, v in zip(keys, topic_key_words)])
 
     def _lda_timeout(self):
-        # Get rid of empty lists
-
-        if self._lda_timer.timeout == 60000:
+        if self._lda_timer.interval() == 60000:
             self._lda_timer.setInterval(180000)
             self._listener.lda_model.set_number_topics(100)
         else:
-            # self._listener.lda_model.token_list = []
-            pass
+            self._listener.lda_model.token_list = []
 
         self._queue.put((self._helper, (), {}))
 

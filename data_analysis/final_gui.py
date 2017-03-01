@@ -44,7 +44,6 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         self._sentiment_map_loaded = False
 
         self.twitter_controller = TwitterController(self._sentiment_map_widget)
-        # self.twitter_controller.start_realtime_widget()
         self.twitter_controller.start_realtime_widget()
         self._sentimet_thread = TabThread(self)
 
