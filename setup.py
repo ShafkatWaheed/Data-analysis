@@ -7,14 +7,7 @@ setup(
         license='BSD',
         author='Ben Hoff',
         packages=find_packages(),
-        install_requires=['pyqt5',
-                          'pandas',
-                          'sqlalchemy',
-                          'nltk',
-                          'numpy',
-                          'jupyter',
-                          'tweepy'],
-
+        install_requires=['PyQt5', 'pandas', 'sqlalchemy', 'nltk', 'numpy', 'jupyter', 'PyQtChart', 'lda', 'matplotlib', 'scipy', 'tweepy'],
         entry_points={},
         extras_require={'dev': ['flake8',]},
         )
