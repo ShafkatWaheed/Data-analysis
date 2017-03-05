@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets, QtCore
 
 from data_analysis.heat_map_widget import HeatMapWidget
 from data_analysis.sentiment_widget import SentimentMapWidget
-from data_analysis.realtime_graph_widget import RealTimeGraphWidget
+from data_analysis.realtime_graph_widget import TopicWidget
 from data_analysis._twitter_controller import TwitterController
 from data_analysis._util import (add_progress_bar,
                                  remove_progress_bar,
@@ -32,8 +32,8 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
     remove_progress_bar = QtCore.pyqtSignal()
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._realtime_graph = RealTimeGraphWidget()
         self._heat_map_widget = HeatMapWidget()
+        self._topic_widget = TopicWidget()
         self._influential_user_widget = HeatMapWidget()
         self._sentiment_map_widget = SentimentMapWidget(draw_map=False)
 
@@ -44,7 +44,6 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         self._sentiment_map_loaded = False
 
         self.twitter_controller = TwitterController(self._sentiment_map_widget)
-        # self.twitter_controller.start_realtime_widget()
         self.twitter_controller.start_realtime_widget()
         self._sentimet_thread = TabThread(self)
 
@@ -52,8 +51,11 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         self._setup_signals_and_slots_helper()
 
     def _add_tabs_helper(self):
-        self.realtime_graph_index = self.addTab(self._realtime_graph,
+        self.realtime_graph_index = self.addTab(self._topic_widget,
                                                 'Velocity')
+
+        self.sentiment_map_index = self.addTab(self._sentiment_map_widget,
+                                               'Sentiment Map')
 
         self.heat_map_index = self.addTab(self._heat_map_widget,
                                           'Heat Map Widget')
@@ -61,13 +63,14 @@ class StreamSwitchTab(QtWidgets.QTabWidget):
         self.influential_user_index = self.addTab(self._influential_user_widget,
                                                   'Influential User Heat Map')
 
-        self.sentiment_map_index = self.addTab(self._sentiment_map_widget,
-                                               'Sentiment Map')
 
 
     def _setup_signals_and_slots_helper(self):
-        realtime_slot = self._realtime_graph.count_data_slot
+        realtime_slot = self._topic_widget.realtime_data_slot
         self.twitter_controller.realtime_signal.connect(realtime_slot)
+
+        topic_slot = self._topic_widget.graph_topics
+        self.twitter_controller.topic_signal.connect(topic_slot)
 
         geography_slot = self._heat_map_widget.geography_slot
         self.twitter_controller.geography_signal.connect(geography_slot)

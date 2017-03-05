@@ -35,7 +35,8 @@ def save_tweets():
     try:
         stream.sample(languages=languages)
     except KeyboardInterrupt:
-        listener.file.close()
+        # listener.file.close()
+        pass
 
 
 class DatabaseListener(StreamListener):

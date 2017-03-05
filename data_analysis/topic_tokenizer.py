@@ -56,6 +56,7 @@ class LDAModel:
         """
         if document_term is None:
             doucment_term = self._make_document_term_matrix(token_list)
+
         return self._model.transform(document_term).argmax(1)
 
     def _make_document_term_matrix(self, token_list):
@@ -140,7 +141,7 @@ class TopicTokenizer(TweetTokenizer):
     def flat_tokenized_list(self, texts: list):
         token_list = [self.tokenize(t) for t in texts]
         return [t for tokens in token_list for t in tokens if t]
-    
+
     def tokenize(self, text):
         # Text preprocessing
         if self.remove_url:

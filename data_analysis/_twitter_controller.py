@@ -78,6 +78,7 @@ class TwitterController(QtCore.QObject):
         self.geography_signal = self._geography_listener.geography_signal
         self.sentiment_signal = self._sentiment_listener.sentiment_signal
         self.realtime_signal = self._realtime_listener.count_signal
+        self.topic_signal = self._realtime_listener.topic_signal
 
     def _rate_errored_callback(self):
         self.running = False
@@ -278,7 +279,7 @@ class _TopicListenerHelper(QtCore.QObject):
     Translates between the Stream Listener and the Qt layer
     """
     count_signal = QtCore.pyqtSignal(int)
-    topic_signal = QtCore.pyqtSignal()
+    topic_signal = QtCore.pyqtSignal(object, object)
 
     def __init__(self, listner):
         super().__init__(None)
@@ -298,10 +299,14 @@ class _TopicListenerHelper(QtCore.QObject):
     def _helper(self):
         token_list = [t for t in self._listener.lda_model.token_list if t]
         topic_numbers = self._listener.lda_model.train_model(token_list)
-        counter = Counter(topic_numbers)
-        topic_key_words = self._listener.lda_model.get_vocabulary_helper(counter.keys())
-
-        print(len(counter.values()), *['\n' + ' '.join((str(k), *v)) for k, v in zip(counter.values(), topic_key_words)])
+        counter = np.array(Counter(topic_numbers).most_common())
+        keys = counter[:, 0]
+        values = counter[:, 1]
+        num_topics = 10
+        topic_key_words = self._listener.lda_model.get_vocabulary_helper(keys[:num_topics])
+        topic_key_words = [' '.join(word) for word in topic_key_words]
+        values = values[:num_topics]
+        self.topic_signal.emit(topic_key_words, values)
 
     def _lda_timeout(self):
         # Get rid of empty lists
@@ -344,7 +349,7 @@ class TopicListener(StreamListener):
 
         self._helper.start_timer()
 
-        self.lda_model = LDAModel()
+        self.lda_model = LDAModel(n_topics=100)
         self._tokenizer = TopicTokenizer()
 
     def on_error(self, error):

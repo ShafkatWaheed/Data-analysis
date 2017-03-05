@@ -78,7 +78,7 @@ def make_document_term_matrix(token_list):
                        shape=(len(indptr) - 1, len(vocabulary)),
                        dtype=np.int64)
     X.sort_indices()
-    return vocabulary, X
+    return X, vocabulary
 
 
 class WorkerThread(Thread):

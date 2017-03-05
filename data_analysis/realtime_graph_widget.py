@@ -97,19 +97,35 @@ class TopicWidget(QtWidgets.QWidget):
         self._figure.set_tight_layout(True)
 
         self.axis = self._figure.add_subplot(111)
+        self.axis.get_yaxis().set_visible(False)
         self._canvas = FigureCanvas(self._figure)
 
         self._realtime_widget = RealTimeGraphWidget()
+        self.realtime_data_slot = self._realtime_widget.count_data_slot
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._canvas)
         layout.addWidget(self._realtime_widget)
+        self.setLayout(layout)
 
-    def _setup_axis(self):
-        pass
+    def graph_topics(self, topics, counts):
+        self.axis.cla()
+        X, Y = self._figure.get_dpi() * self._figure.get_size_inches()
+        # NOTE: num_topic is currently defined in the _TopicListenerHelper
+        num_topic = 10
+        h = Y / num_topic
+        y_values = []
+        start_x_value = counts[0] * .05
+        for row, words in enumerate(topics):
+            y = Y - (row * h) - h
+            y_values.append(y)
+            self.axis.text(start_x_value, y, words, fontsize=(h*.5), horizontalalignment='left',
+                           verticalalignment='center', color='gold')
 
-    def graph_topics(self, topics, probabilities):
-        pass
+        y_values[-1] = 0
+        self.axis.set_ylim(-20, Y)
+        self.axis.barh(y_values, counts, height=0.9*h, color='midnightblue')
+        self.update_canvas()
 
     def update_canvas(self):
         self._canvas.draw()
