@@ -39,7 +39,7 @@ class LDAModel:
     def set_number_topics(self, n_topics):
         self._model.n_topics = n_topics
 
-    def get_vocabulary_helper(self, topic_numbers, number=5):
+    def get_vocabulary_helper(self, topic_numbers, number=8):
         # TODO: think of a better way to do this.
         vocab = np.array(list(self.vocabulary.keys()))
         topic_models = self._model.components_

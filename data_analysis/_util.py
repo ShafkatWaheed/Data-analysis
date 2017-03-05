@@ -48,7 +48,10 @@ def get_text_cleaned(tweet):
 
 
 def make_document_term_matrix(token_list):
-    """Function for creating a document term matrix. Taken from SciKit-Learn"""
+    """Function for creating a document term matrix. Taken from SciKit-Learn. 
+
+    returns: `vocabulary` and a sparse matrix document term matrix
+    """
     vocabulary = defaultdict()
     vocabulary.default_factory = vocabulary.__len__
     j_indices = []

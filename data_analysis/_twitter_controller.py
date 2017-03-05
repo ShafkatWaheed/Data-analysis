@@ -302,6 +302,7 @@ class _TopicListenerHelper(QtCore.QObject):
         counter = np.array(Counter(topic_numbers).most_common())
         keys = counter[:, 0]
         values = counter[:, 1]
+
         num_topics = 10
         topic_key_words = self._listener.lda_model.get_vocabulary_helper(keys[:num_topics])
         topic_key_words = [' '.join(word) for word in topic_key_words]
@@ -309,14 +310,11 @@ class _TopicListenerHelper(QtCore.QObject):
         self.topic_signal.emit(topic_key_words, values)
 
     def _lda_timeout(self):
-        # Get rid of empty lists
-
-        if self._lda_timer.timeout == 60000:
+        if self._lda_timer.interval() == 60000:
             self._lda_timer.setInterval(180000)
             self._listener.lda_model.set_number_topics(100)
         else:
-            # self._listener.lda_model.token_list = []
-            pass
+            self._listener.lda_model.token_list = []
 
         self._queue.put((self._helper, (), {}))
 
